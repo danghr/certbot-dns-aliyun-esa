@@ -24,22 +24,33 @@ if [ ! -z $SUB_DOMAIN ]; then
     SUB_DOMAIN=.$SUB_DOMAIN
 fi
 
+# Get ESA site info and check if domain exists
+SITE_ID=$(aliyun esa ListSites | grep -A 3 -B 3 "\"SiteName\": \"$DOMAIN\"" | grep '"SiteId": [0-9]*' | head -1 | sed 's/.*: //;s/,$//')
+
+if [ ! -z "$SITE_ID" ]; then
+	echo "Found site ID for $DOMAIN: $SITE_ID"
+else
+	echo "Error: Site ID for $DOMAIN not found. Please check if the domain is correct and exists in ESA."
+	exit 1
+fi
+
 if [ $# -eq 0 ]; then
-	aliyun alidns AddDomainRecord \
-		--DomainName $DOMAIN \
-		--RR "_acme-challenge"$SUB_DOMAIN \
+	echo "Adding DNS record for \"_acme-challenge\"$SUB_DOMAIN"
+	aliyun esa CreateRecord \
+		--SiteId $SITE_ID \
+		--RecordName "_acme-challenge"$SUB_DOMAIN \
 		--Type "TXT" \
 		--Value $CERTBOT_VALIDATION
 	/bin/sleep 20
 else
-	RecordId=$(aliyun alidns DescribeDomainRecords \
-		--DomainName $DOMAIN \
-		--RRKeyWord "_acme-challenge"$SUB_DOMAIN \
+	echo "Deleting DNS record for \"_acme-challenge\"$SUB_DOMAIN"
+	RecordId=$(aliyun esa ListRecords \
+		--SiteId $SITE_ID \
+		--RecordName "_acme-challenge"$SUB_DOMAIN \
 		--Type "TXT" \
-		--ValueKeyWord $CERTBOT_VALIDATION \
 		| grep "RecordId" \
 		| grep -Eo "[0-9]+")
 
-	aliyun alidns DeleteDomainRecord \
+	aliyun esa DeleteRecord \
 		--RecordId $RecordId
 fi
