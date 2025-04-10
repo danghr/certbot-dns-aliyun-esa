@@ -35,21 +35,28 @@ else
 fi
 
 if [ $# -eq 0 ]; then
-	echo "Adding DNS record for \"_acme-challenge\"$SUB_DOMAIN"
+	echo "Adding DNS record for _acme-challenge$SUB_DOMAIN.$DOMAIN"
 	aliyun esa CreateRecord \
 		--SiteId $SITE_ID \
-		--RecordName "_acme-challenge"$SUB_DOMAIN \
+		--RecordName "_acme-challenge"$SUB_DOMAIN.$DOMAIN \
 		--Type "TXT" \
-		--Value $CERTBOT_VALIDATION
+		--Data "{\"Value\":\"$CERTBOT_VALIDATION\"}" \
+		--Ttl 1
 	/bin/sleep 20
 else
-	echo "Deleting DNS record for \"_acme-challenge\"$SUB_DOMAIN"
+	echo "Deleting DNS record for \"_acme-challenge\"$SUB_DOMAIN.$DOMAIN"
 	RecordId=$(aliyun esa ListRecords \
 		--SiteId $SITE_ID \
-		--RecordName "_acme-challenge"$SUB_DOMAIN \
+		--RecordName "_acme-challenge"$SUB_DOMAIN.$DOMAIN \
 		--Type "TXT" \
 		| grep "RecordId" \
 		| grep -Eo "[0-9]+")
+
+	echo "RecordId: $RecordId"
+	if [ -z "$RecordId" ]; then
+		echo "Error: Record ID for _acme-challenge$SUB_DOMAIN.$DOMAIN not found. Please check if the record exists."
+		exit 1
+	fi
 
 	aliyun esa DeleteRecord \
 		--RecordId $RecordId
